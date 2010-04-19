@@ -45,7 +45,7 @@ URL: http://TODO.example.com/
 Name: @NAME@
 Version: @VERSION@
 Release: @RELEASE@
-Source: "%name-%version.tar.gz"
+Source: %name-%version.tar.gz
 BuildRoot: @FAKEROOT@/
 AutoReqProv: no
 #Requires:
@@ -57,17 +57,17 @@ TODO. PLEASE EDIT ME!
 # BUILD-TIME SCRIPTS
 ##########################################################################################
 %prep
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 true "BEG Build preprocess"
 true "END Build preprocess"
 
 %setup -q
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 true "BEG Setup"
 true "END Setup"
 
 %build
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 true "BEG Build"
 echo "BUILDROOT: %{buildroot}"
 echo "PACKAGE-NAME: %{name}"
@@ -76,7 +76,7 @@ echo "PACKAGE-RELEASE: %{release}"
 true "END Build"
 
 %install
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 true "BEG Installation"
 #Creating fake Makefile
 %{__cat} > "%{buildroot}/%{name}-%{version}/Makefile" <<EOT
@@ -90,7 +90,7 @@ EOT
 true "END Installation"
 
 %makeinstall
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 true "BEG make install"
 true BUILDROOT:%{buildroot}
 %{__rm} -rf "%{buildroot}/%{name}-%{version}/Makefile"
@@ -100,7 +100,7 @@ mv "%{buildroot}/%{name}-%{version}"/* "@FAKEROOT@"
 true "END make install"
 
 %clean
-true "----------------------------------------------------------------------------------"
+true "=================================================================================="
 
 %files -f "@FAKEROOT@/../%{name}-files.txt"
 
@@ -198,15 +198,24 @@ extract_files() {
 }
 
 build() {
-	if test $# -lt 4; then
+	if test -z "$1"; then
 		help
 		exit 1
 	fi
 
 	NAME="$1"
-	VERSION="$2"
-	RELEASE="$3"
-	ARCH="$4"
+	VERSION="1.0.0"
+	RELEASE="1"
+	ARCH="noarch"
+	if test -n "$2"; then
+		VERSION="$2"
+	fi
+	if test -n "$3"; then
+		RELEASE="$3"
+	fi
+	if test -n "$4"; then
+		ARCH="$4"
+	fi
 	SPECSKEL="$NAME.spec.in"
 
 	PKGFULLNAME="$NAME-$VERSION"
@@ -224,6 +233,7 @@ build() {
 		echo "Can't make temporary root directory for building rpm"
 		exit 1
 	}
+	mkdir "$RPMDIR" 2>/dev/null
 
 	echo "--------------------------------------------------------------------------"
 	echo "* Making tarball($PKGFULLNAME.tar.gz) for rpm build..."
@@ -272,7 +282,7 @@ Command:
     init <name>
         : Create rpm spec template and skeleton directory filled with samples
 
-    build <name> <version> <release> <arch>
+    build <name> [<version> [<release> [<arch>]]]
         : Build rpm with options
 
     files <name>
