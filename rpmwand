@@ -9,10 +9,8 @@
 # License copy: http://www.opensource.org/licenses/bsd-license.php
 #
 
-cd $(dirname $0)
-
 VERSION=0.9
-TARGETDIR=./RPMS
+RPMDIR="$(pwd)/RPMS"
 SHELL=bash
 
 check_env() {
@@ -32,14 +30,11 @@ init_spec() {
 	cat > "$SPEC_INPUT" <<"END_OF_SPEC_INPUT"
 %define _builddir @FAKEROOT@/
 %define _topdir /
-%define _rpmdir @FAKEROOT@/..
+%define _rpmdir @RPMDIR@
 %define _tmppath @FAKEROOT@/tmp
 %define _sourcedir @FAKEROOT@/..
 %define debug_package %{nil}
-%define __make %nil
-%define __check_files %nil
-%define __os_install_post %nil
-%define __prelink_undo_cmd %nil
+%define __makeinstall %nil
 
 Summary: TODO. PLEASE EDIT ME!
 Vendor: TODO. PLEASE EDIT ME!
@@ -218,22 +213,23 @@ build() {
 	PKGFULLPATH="`pwd`/$PKGFULLNAME"
 	FAKEROOT="`pwd`/faked-root.$$"
 
-	echo "Name    : $NAME"
-	echo "Version : $VERSION"
-	echo "Release : $RELEASE"
+	echo " * Package name : $NAME"
+	echo " * Version      : $VERSION"
+	echo " * Release      : $RELEASE"
+	echo ""
 
 	rm -rf $PKGFULLNAME/
 	rm -rf faked-root.*
-	mkdir "$FAKEROOT"
-	mkdir "$FAKEROOT/build"
+	mkdir "$FAKEROOT" || {
+		echo "Can't make temporary root directory for building rpm"
+		exit 1
+	}
 
 	echo "--------------------------------------------------------------------------"
 	echo "* Making tarball($PKGFULLNAME.tar.gz) for rpm build..."
 	echo "* Tarball($PKGFULLNAME.tar.gz) is assumed containing '$PKGFULLNAME' directory as the first child item"
 	echo "* Cloning '$NAME-skel' directory to '$PKGFULLNAME'"
-	#( cd ..; tar cf - --exclude=build --exclude=.svn . ) | ( mkdir $PKGFULLNAME; cd $PKGFULLNAME; tar xf - )
 	cp -rp "$NAME-skel/" "$PKGFULLNAME/"
-	#cp -rp "$NAME-skel/" "$FAKEROOT/"
 	echo "* Check if there is custom packaging script ($NAME-setup.sh)"
 	if test -f "$NAME-setup.sh"; then
 		"$SHELL" "$NAME-setup.sh" "$PKGFULLPATH"
@@ -251,24 +247,19 @@ build() {
 			-e "s;@RELEASE@;$RELEASE;g" \
 			-e "s;@NAME@;$NAME;g" \
 			-e "s;@FAKEROOT@;$FAKEROOT;g" \
+			-e "s;@RPMDIR@;$RPMDIR;g" \
 		> "$NAME.spec"
 
-	rm -rf noarch
+	rm -rf faked-root.*
 	LANG=C rpmbuild -bb "$NAME.spec" --target $ARCH || exit 1
 
 	echo "--------------------------------------------------------------------------"
-	echo "RPM build done..."
-	rm -rf faked-root.*
+	echo " * RPM build done..."
 
-	RPMFILE=$(find `pwd`/noarch -type f)
-
-	if test -n "$TARGETDIR"; then
-		mkdir $TARGETDIR 2>/dev/null
-		mv  $RPMFILE $TARGETDIR/
-		rm -rf noarch
-	else
-		echo "Output: $RPMFILE"
-	fi
+	echo ""
+	echo " * Check.."
+	find $RPMDIR -type f
+	echo ""
 }
 
 help() {
