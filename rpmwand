@@ -34,7 +34,6 @@ init_spec() {
 %define _tmppath @FAKEROOT@/tmp
 %define _sourcedir @FAKEROOT@/..
 %define debug_package %{nil}
-%define __makeinstall %nil
 
 Summary: TODO. PLEASE EDIT ME!
 Vendor: TODO. PLEASE EDIT ME!
@@ -46,7 +45,7 @@ URL: http://TODO.example.com/
 Name: @NAME@
 Version: @VERSION@
 Release: @RELEASE@
-Source: %name-%version.tar.gz
+Source: "%name-%version.tar.gz"
 BuildRoot: @FAKEROOT@/
 AutoReqProv: no
 #Requires:
@@ -80,7 +79,7 @@ true "END Build"
 true "----------------------------------------------------------------------------------"
 true "BEG Installation"
 #Creating fake Makefile
-%{__cat} > %{buildroot}/%{name}-%{version}/Makefile <<EOT
+%{__cat} > "%{buildroot}/%{name}-%{version}/Makefile" <<EOT
 install:
 	@echo ""
 	@echo "I am FAKE Makefile install target. Do you see me?"
@@ -94,16 +93,16 @@ true "END Installation"
 true "----------------------------------------------------------------------------------"
 true "BEG make install"
 true BUILDROOT:%{buildroot}
-%{__rm} -rf %{buildroot}/%{name}-%{version}/Makefile
+%{__rm} -rf "%{buildroot}/%{name}-%{version}/Makefile"
 #Installing all contents to fake root
-mv %{buildroot}/%{name}-%{version}/* "@FAKEROOT@"
+mv "%{buildroot}/%{name}-%{version}"/* "@FAKEROOT@"
 
 true "END make install"
 
 %clean
 true "----------------------------------------------------------------------------------"
 
-%files -f @FAKEROOT@/../%{name}-files.txt
+%files -f "@FAKEROOT@/../%{name}-files.txt"
 
 ##########################################################################################
 # INSTALL/UNINSTALL-TIME SCRIPTS
@@ -161,7 +160,7 @@ init_skel() {
 echo "Hello, world"
 END_OF_SAMPLE
 	chmod +x "$SKEL_DIR/usr/local/bin/sample-bin"
-	echo "* Created skeleton directory: $SKEL_DIR"
+	echo "* Created skeleton directory: '$SKEL_DIR'"
 	echo ""
 }
 
@@ -194,6 +193,7 @@ extract_files() {
 		done | sed -e 's@____.@ @'
 	} ) > "$FILES_FILE"
 	echo "* Created file list: $FILES_FILE"
+	echo "  Please edit $FILES_FILE"
 	echo ""
 }
 
@@ -210,15 +210,15 @@ build() {
 	SPECSKEL="$NAME.spec.in"
 
 	PKGFULLNAME="$NAME-$VERSION"
-	PKGFULLPATH="`pwd`/$PKGFULLNAME"
-	FAKEROOT="`pwd`/faked-root.$$"
+	PKGFULLPATH="$(pwd)/$PKGFULLNAME"
+	FAKEROOT="$(pwd)/faked-root.$$"
 
 	echo " * Package name : $NAME"
 	echo " * Version      : $VERSION"
 	echo " * Release      : $RELEASE"
 	echo ""
 
-	rm -rf $PKGFULLNAME/
+	rm -rf "$PKGFULLNAME/"
 	rm -rf faked-root.*
 	mkdir "$FAKEROOT" || {
 		echo "Can't make temporary root directory for building rpm"
@@ -237,11 +237,11 @@ build() {
 		echo "  skip running: $SHELL $NAME-setup.sh $PKGFULLPATH"
 	fi
 	echo "* Tarring '$PKGFULLNAME.tar.gz' from '$PKGFULLNAME'"
-	tar czf $PKGFULLNAME.tar.gz $PKGFULLNAME
+	tar czf "$PKGFULLNAME.tar.gz" "$PKGFULLNAME"
 
 	echo "--------------------------------------------------------------------------"
 	echo "* Now, building rpm...."
-	cat $SPECSKEL | \
+	cat "$SPECSKEL" | \
 		sed \
 			-e "s;@VERSION@;$VERSION;g" \
 			-e "s;@RELEASE@;$RELEASE;g" \
@@ -258,7 +258,7 @@ build() {
 
 	echo ""
 	echo " * Check.."
-	find $RPMDIR -type f
+	find "$RPMDIR" -type f
 	echo ""
 }
 
