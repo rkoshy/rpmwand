@@ -1,4 +1,13 @@
 #!/bin/sh
+# rpmwand for building rpm package.
+#
+# Copyright(c) 2010, Hojin Choi <hojin.choi@gmail.com>
+# All rights reserved.
+#
+# See project url: http://code.google.com/p/rpmwand/
+# You can freely redistribute this program under the new bsd license.
+# License copy: http://www.opensource.org/licenses/bsd-license.php
+#
 
 cd $(dirname $0)
 
@@ -266,13 +275,18 @@ help() {
 	cat <<ENDOFCAT
 Usage: rpmwand <command> <name> [<args>...]
 
-Simple RPM Builder, version $VERSION
+Simple RPM Builder, version $VERSION by Hojin Choi <hojin.choi@gmail.com>
 
 Command:
     init <name>
-        : Create rpm spec template and skeleton directories filled with samples
+        : Create rpm spec template and skeleton directory filled with samples
+
     build <name> <version> <release> <arch>
         : Build rpm with options
+
+    files <name>
+        : Extract file list from skeleton directory
+
     help
         : This help.
 ENDOFCAT
