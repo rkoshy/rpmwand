@@ -1,0 +1,303 @@
+#!/bin/sh
+
+cd $(dirname $0)
+
+VERSION=0.9
+TARGETDIR=./RPMS
+SHELL=bash
+
+check_env() {
+	rpmbuild --help >/dev/null 2>&1 || {
+		echo "You need rpmbuild, install 'rpm-build' package"
+		exit 1
+	}
+}
+
+init_spec() {
+	NAME="$1"
+	SPEC_INPUT="$NAME.spec.in"
+	if test -f "$SPEC_INPUT"; then
+		echo "There already exists spec file($SPEC_INPUT). Remove it first!"
+		exit 1
+	fi
+	cat > "$SPEC_INPUT" <<"END_OF_SPEC_INPUT"
+%define _builddir @FAKEROOT@/
+%define _topdir /
+%define _rpmdir @FAKEROOT@/..
+%define _tmppath @FAKEROOT@/tmp
+%define _sourcedir @FAKEROOT@/..
+%define debug_package %{nil}
+%define __make %nil
+%define __check_files %nil
+%define __os_install_post %nil
+%define __prelink_undo_cmd %nil
+
+Summary: TODO. PLEASE EDIT ME!
+Vendor: TODO. PLEASE EDIT ME!
+Packager: TODO. PLEASE EDIT ME!
+License: TODO. PLEASE EDIT ME!
+Group: TODO. PLEASE EDIT ME!
+URL: http://TODO.example.com/
+
+Name: @NAME@
+Version: @VERSION@
+Release: @RELEASE@
+Source: %name-%version.tar.gz
+BuildRoot: @FAKEROOT@/
+AutoReqProv: no
+#Requires:
+
+%description
+TODO. PLEASE EDIT ME!
+
+##########################################################################################
+# BUILD-TIME SCRIPTS
+##########################################################################################
+%prep
+true "----------------------------------------------------------------------------------"
+true "BEG Build preprocess"
+true "END Build preprocess"
+
+%setup -q
+true "----------------------------------------------------------------------------------"
+true "BEG Setup"
+true "END Setup"
+
+%build
+true "----------------------------------------------------------------------------------"
+true "BEG Build"
+echo "BUILDROOT: %{buildroot}"
+echo "PACKAGE-NAME: %{name}"
+echo "PACKAGE-VERSION: %{version}"
+echo "PACKAGE-RELEASE: %{release}"
+true "END Build"
+
+%install
+true "----------------------------------------------------------------------------------"
+true "BEG Installation"
+#Creating fake Makefile
+%{__cat} > %{buildroot}/%{name}-%{version}/Makefile <<EOT
+install:
+	@echo ""
+	@echo "I am FAKE Makefile install target. Do you see me?"
+	@echo ""
+EOT
+
+
+true "END Installation"
+
+%makeinstall
+true "----------------------------------------------------------------------------------"
+true "BEG make install"
+true BUILDROOT:%{buildroot}
+%{__rm} -rf %{buildroot}/%{name}-%{version}/Makefile
+#Installing all contents to fake root
+mv %{buildroot}/%{name}-%{version}/* "@FAKEROOT@"
+
+true "END make install"
+
+%clean
+true "----------------------------------------------------------------------------------"
+
+%files -f @FAKEROOT@/../%{name}-files.txt
+
+##########################################################################################
+# INSTALL/UNINSTALL-TIME SCRIPTS
+##########################################################################################
+%pretrans
+true BEG Pre-transaction script
+# Usually umask here
+umask 007
+
+%pre
+true BEG Pre-installation script
+
+true END Pre-installation script
+
+%post
+true BEG Post-installation script
+
+true END Post-installation script
+
+%preun
+true BEG Pre-uninstall script
+
+true END Pre-uninstall script
+
+%postun
+true BEG Post-uninstall script
+#Place temporary file cleaner here.
+#Place user deletion script here.
+
+true END Post-uninstall script
+
+%changelog
+
+END_OF_SPEC_INPUT
+	echo "* Created spec input file: $SPEC_INPUT"
+	echo "  Please edit $SPEC_INPUT"
+	echo "  Fix TODO values"
+	echo ""
+}
+
+init_skel() {
+	NAME="$1"
+	SKEL_DIR="$NAME-skel"
+	if test -d "$SKEL_DIR"; then
+		echo "Skeleton directory($SKEL_DIR) exists, Remove it first!"
+		exit 1
+	fi
+	mkdir -p "$SKEL_DIR/etc"
+	mkdir -p "$SKEL_DIR/usr/local/bin"
+	mkdir -p "$SKEL_DIR/usr/local/lib"
+	mkdir -p "$SKEL_DIR/usr/share/man/man1"
+	echo "Sample etc" > "$SKEL_DIR/etc/sample.conf"
+	echo > "$SKEL_DIR/usr/local/bin/sample-bin" <<"END_OF_SAMPLE"
+#!/bin/sh
+echo "Hello, world"
+END_OF_SAMPLE
+	chmod +x "$SKEL_DIR/usr/local/bin/sample-bin"
+	echo "* Created skeleton directory: $SKEL_DIR"
+	echo ""
+}
+
+extract_files() {
+	NAME="$1"
+	SKEL_DIR="$NAME-skel"
+	FILES_FILE="$NAME-files.txt"
+	if test ! -d "$SKEL_DIR"; then
+		echo "There is no $SKEL_DIR, Init first"
+		exit 1
+	fi
+	( cd "$SKEL_DIR" && find . | {
+		echo "#File list of $NAME"
+		echo "#See details of directives at http://www.rpm.org/max-rpm/s1-rpm-inside-files-list-directives.html"
+		echo ""
+		while read line
+		do
+			if test "$line" = "."; then
+				continue
+			fi
+			if test -d $line; then
+				echo "%dir____$line"
+			else
+				if echo $line | grep -q "\.\(conf\|cfg\|ini\|cf\)$"; then
+					echo "%config %attr(-,-,-)____$line"
+				else
+					echo "%attr(-,-,-)____$line"
+				fi
+			fi
+		done | sed -e 's@____.@ @'
+	} ) > "$FILES_FILE"
+	echo "* Created file list: $FILES_FILE"
+	echo ""
+}
+
+build() {
+	if test $# -lt 4; then
+		help
+		exit 1
+	fi
+
+	NAME="$1"
+	VERSION="$2"
+	RELEASE="$3"
+	ARCH="$4"
+	SPECSKEL="$NAME.spec.in"
+
+	PKGFULLNAME="$NAME-$VERSION"
+	PKGFULLPATH="`pwd`/$PKGFULLNAME"
+	FAKEROOT="`pwd`/faked-root.$$"
+
+	echo "Name    : $NAME"
+	echo "Version : $VERSION"
+	echo "Release : $RELEASE"
+
+	rm -rf $PKGFULLNAME/
+	rm -rf faked-root.*
+	mkdir "$FAKEROOT"
+	mkdir "$FAKEROOT/build"
+
+	echo "--------------------------------------------------------------------------"
+	echo "* Making tarball($PKGFULLNAME.tar.gz) for rpm build..."
+	echo "* Tarball($PKGFULLNAME.tar.gz) is assumed containing '$PKGFULLNAME' directory as the first child item"
+	echo "* Cloning '$NAME-skel' directory to '$PKGFULLNAME'"
+	#( cd ..; tar cf - --exclude=build --exclude=.svn . ) | ( mkdir $PKGFULLNAME; cd $PKGFULLNAME; tar xf - )
+	cp -rp "$NAME-skel/" "$PKGFULLNAME/"
+	#cp -rp "$NAME-skel/" "$FAKEROOT/"
+	echo "* Check if there is custom packaging script ($NAME-setup.sh)"
+	if test -f "$NAME-setup.sh"; then
+		"$SHELL" "$NAME-setup.sh" "$PKGFULLPATH"
+	else
+		echo "  skip running: $SHELL $NAME-setup.sh $PKGFULLPATH"
+	fi
+	echo "* Tarring '$PKGFULLNAME.tar.gz' from '$PKGFULLNAME'"
+	tar czf $PKGFULLNAME.tar.gz $PKGFULLNAME
+
+	echo "--------------------------------------------------------------------------"
+	echo "* Now, building rpm...."
+	cat $SPECSKEL | \
+		sed \
+			-e "s;@VERSION@;$VERSION;g" \
+			-e "s;@RELEASE@;$RELEASE;g" \
+			-e "s;@NAME@;$NAME;g" \
+			-e "s;@FAKEROOT@;$FAKEROOT;g" \
+		> "$NAME.spec"
+
+	rm -rf noarch
+	LANG=C rpmbuild -bb "$NAME.spec" --target $ARCH || exit 1
+
+	echo "--------------------------------------------------------------------------"
+	echo "RPM build done..."
+	rm -rf faked-root.*
+
+	RPMFILE=$(find `pwd`/noarch -type f)
+
+	if test -n "$TARGETDIR"; then
+		mkdir $TARGETDIR 2>/dev/null
+		mv  $RPMFILE $TARGETDIR/
+		rm -rf noarch
+	else
+		echo "Output: $RPMFILE"
+	fi
+}
+
+help() {
+	cat <<ENDOFCAT
+Usage: rpmwand <command> <name> [<args>...]
+
+Simple RPM Builder, version $VERSION
+
+Command:
+    init <name>
+        : Create rpm spec template and skeleton directories filled with samples
+    build <name> <version> <release> <arch>
+        : Build rpm with options
+    help
+        : This help.
+ENDOFCAT
+}
+
+echo ""
+check_env || exit 1
+
+case "$1" in 
+init)
+	shift
+	init_skel "$@"
+	extract_files "$@"
+	init_spec "$@"
+	;;
+build)
+	shift
+	build "$@"
+	;;
+files)
+	shift
+	extract_files "$@"
+	;;
+*|help|--help|-h)
+	help
+	;;
+esac
+exit 0
