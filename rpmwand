@@ -9,7 +9,7 @@
 # License copy: http://www.opensource.org/licenses/bsd-license.php
 #
 
-VERSION=0.9
+VERSION=0.9.1
 RPMDIR="$(pwd)/RPMS"
 SHELL=bash
 
@@ -155,7 +155,7 @@ init_skel() {
 	mkdir -p "$SKEL_DIR/usr/local/lib"
 	mkdir -p "$SKEL_DIR/usr/share/man/man1"
 	echo "Sample etc" > "$SKEL_DIR/etc/sample.conf"
-	echo > "$SKEL_DIR/usr/local/bin/sample-bin" <<"END_OF_SAMPLE"
+	cat > "$SKEL_DIR/usr/local/bin/sample-bin" <<"END_OF_SAMPLE"
 #!/bin/sh
 echo "Hello, world"
 END_OF_SAMPLE
@@ -181,13 +181,17 @@ extract_files() {
 			if test "$line" = "."; then
 				continue
 			fi
+			PERM=`stat -c %a $line`
 			if test -d $line; then
-				echo "%dir____$line"
+				echo $line | grep -q "^./\(home\|usr\|etc\|opt\|usr/local\|etc/init.d\)$"
+				if test $? -eq 1; then
+					echo "%dir____$line"
+				fi
 			else
 				if echo $line | grep -q "\.\(conf\|cfg\|ini\|cf\)$"; then
-					echo "%config %attr(-,-,-)____$line"
+					echo "%config %attr($PERM,-,-)____$line"
 				else
-					echo "%attr(-,-,-)____$line"
+					echo "%attr($PERM,-,-)____$line"
 				fi
 			fi
 		done | sed -e 's@____.@ @'
@@ -278,16 +282,19 @@ Usage: rpmwand <command> <name> [<args>...]
 
 Simple RPM Builder, version $VERSION by Hojin Choi <hojin.choi@gmail.com>
 
-Command:
+Main Command:
     init <name>
         : Create rpm spec template and skeleton directory filled with samples
 
     build <name> [<version> [<release> [<arch>]]]
         : Build rpm with options
 
+Sub Command:
     files <name>
         : Extract file list from skeleton directory
 
+	initspec <name>
+		: Make spec file template only.
     help
         : This help.
 ENDOFCAT
@@ -299,16 +306,36 @@ check_env || exit 1
 case "$1" in 
 init)
 	shift
+	if test $# -ne 1; then
+		help
+		exit
+	fi
 	init_skel "$@"
 	extract_files "$@"
 	init_spec "$@"
 	;;
+initspec)
+	shift
+	if test $# -ne 1; then
+		help
+		exit
+	fi
+	init_spec "$@"
+	;;
 build)
 	shift
+	if test $# -le 1; then
+		help
+		exit
+	fi
 	build "$@"
 	;;
 files)
 	shift
+	if test $# -le 1; then
+		help
+		exit
+	fi
 	extract_files "$@"
 	;;
 *|help|--help|-h)
