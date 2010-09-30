@@ -9,9 +9,9 @@
 # License copy: http://www.opensource.org/licenses/bsd-license.php
 #
 
-VERSION=0.9.1
-RPMDIR="$(pwd)/RPMS"
-SHELL=bash
+_VERSION=0.9.1
+_RPMDIR="$(pwd)/RPMS"
+_SHELL=bash
 
 check_env() {
 	rpmbuild --help >/dev/null 2>&1 || {
@@ -208,11 +208,11 @@ build() {
 	fi
 
 	NAME="$1"
-	VERSION="1.0.0"
+	_VERSION="1.0.0"
 	RELEASE="1"
 	ARCH="noarch"
 	if test -n "$2"; then
-		VERSION="$2"
+		_VERSION="$2"
 	fi
 	if test -n "$3"; then
 		RELEASE="$3"
@@ -222,12 +222,12 @@ build() {
 	fi
 	SPECSKEL="$NAME.spec.in"
 
-	PKGFULLNAME="$NAME-$VERSION"
+	PKGFULLNAME="$NAME-$_VERSION"
 	PKGFULLPATH="$(pwd)/$PKGFULLNAME"
 	FAKEROOT="$(pwd)/faked-root.$$"
 
 	echo " * Package name : $NAME"
-	echo " * Version      : $VERSION"
+	echo " * Version      : $_VERSION"
 	echo " * Release      : $RELEASE"
 	echo ""
 
@@ -237,7 +237,7 @@ build() {
 		echo "Can't make temporary root directory for building rpm"
 		exit 1
 	}
-	mkdir "$RPMDIR" 2>/dev/null
+	mkdir "$_RPMDIR" 2>/dev/null
 
 	echo "--------------------------------------------------------------------------"
 	echo "* Making tarball($PKGFULLNAME.tar.gz) for rpm build..."
@@ -246,9 +246,9 @@ build() {
 	cp -rp "$NAME-skel/" "$PKGFULLNAME/"
 	echo "* Check if there is custom packaging script ($NAME-setup.sh)"
 	if test -f "$NAME-setup.sh"; then
-		"$SHELL" "$NAME-setup.sh" "$PKGFULLPATH"
+		"$_SHELL" "$NAME-setup.sh" "$PKGFULLPATH"
 	else
-		echo "  skip running: $SHELL $NAME-setup.sh $PKGFULLPATH"
+		echo "  skip running: $_SHELL $NAME-setup.sh $PKGFULLPATH"
 	fi
 	echo "* Tarring '$PKGFULLNAME.tar.gz' from '$PKGFULLNAME'"
 	tar czf "$PKGFULLNAME.tar.gz" "$PKGFULLNAME"
@@ -257,11 +257,11 @@ build() {
 	echo "* Now, building rpm...."
 	cat "$SPECSKEL" | \
 		sed \
-			-e "s;@VERSION@;$VERSION;g" \
+			-e "s;@VERSION@;$_VERSION;g" \
 			-e "s;@RELEASE@;$RELEASE;g" \
 			-e "s;@NAME@;$NAME;g" \
 			-e "s;@FAKEROOT@;$FAKEROOT;g" \
-			-e "s;@RPMDIR@;$RPMDIR;g" \
+			-e "s;@RPMDIR@;$_RPMDIR;g" \
 		> "$NAME.spec"
 
 	rm -rf faked-root.*
@@ -272,15 +272,35 @@ build() {
 
 	echo ""
 	echo " * Check.."
-	find "$RPMDIR" -type f
+	find "$_RPMDIR" -type f
 	echo ""
+}
+
+subst() {
+	export | grep "^export" | awk '{print $2}' | awk -F= '{print $1}' > /tmp/a.export
+	SRC="$1"
+	TARGET="$2"
+	shift 2
+	rm -f /tmp/rpmwand.$$.awk
+	for token in $@
+	do
+		echo "s;@$token@;$(eval echo \$$token);g" >> /tmp/rpmwand.$$.awk
+	done
+	echo "Building $TARGET from $SRC"
+	sed -f /tmp/rpmwand.$$.awk $SRC > $TARGET.tmp
+	if cmp -s "$TARGET" "$TARGET.tmp"; then
+		:
+	else
+		mv $TARGET.tmp $TARGET
+	fi
+	rm -f /tmp/rpmwand.$$.awk
 }
 
 help() {
 	cat <<ENDOFCAT
 Usage: rpmwand <command> <name> [<args>...]
 
-Simple RPM Builder, version $VERSION by Hojin Choi <hojin.choi@gmail.com>
+Simple RPM Builder, version $_VERSION by Hojin Choi <hojin.choi@gmail.com>
 
 Main Command:
     init <name>
@@ -295,12 +315,16 @@ Sub Command:
 
 	initspec <name>
 		: Make spec file template only.
+
+	subst <file> <new file> <environment-var> [<environment-var>...]
+		: read <file> and convert all words like @environment-var@ patterns to the value of
+		  environment, and store the result to <new file>
+
     help
         : This help.
 ENDOFCAT
 }
 
-echo ""
 check_env || exit 1
 
 case "$1" in 
@@ -337,6 +361,14 @@ files)
 		exit
 	fi
 	extract_files "$@"
+	;;
+subst)
+	shift
+	if test $# -le 2; then
+		help
+		exit
+	fi
+	subst $@
 	;;
 *|help|--help|-h)
 	help
