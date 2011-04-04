@@ -1,0 +1,5 @@
+#File list of rpmwand
+#See details of directives at http://www.rpm.org/max-rpm/s1-rpm-inside-files-list-directives.html
+
+%dir /usr/bin
+%attr(775,-,-) /usr/bin/rpmwand
