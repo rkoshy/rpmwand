@@ -9,7 +9,7 @@
 # License copy: http://www.opensource.org/licenses/bsd-license.php
 #
 
-_VERSION=0.9.1
+_VERSION=0.9.2
 _RPMDIR="$(pwd)/RPMS"
 _SHELL=bash
 
@@ -114,16 +114,44 @@ umask 007
 
 %pre
 true BEG Pre-installation script
+if test "$1" = "1"; then # Install
+	#Place your script pre-install script
+	#echo "Pre-install script version:" %{version}>> /tmp/%{name}.log
+	:
+else # Update ($1 = "2")
+	#Place your script pre-update script
+	#echo "Pre-update script of new version:" %{version}>> /tmp/%{name}.log
+	:
+fi
 
 true END Pre-installation script
 
 %post
 true BEG Post-installation script
+if test "$1" = "1"; then # Install
+	#Place your script post-install script
+	#echo "Post-install script version:" %{version}>> /tmp/%{name}.log
+	:
+else # Update ($1 = "2")
+	#Place your script post-update script
+	#echo "Post-update script of new version:" %{version}>> /tmp/%{name}.log
+	:
+fi
+
 
 true END Post-installation script
 
 %preun
 true BEG Pre-uninstall script
+if test "$1" = "0"; then # Uninstall
+	#Place your script pre-uninstall script
+	#echo "Pre-uninstall script version:" %{version}>> /tmp/%{name}.log
+	:
+else # Uninstall by new version ($1 = "1")
+	#Place your script pre-update script
+	#echo "Pre-update script of old version:" %{version}>> /tmp/%{name}.log
+	:
+fi
 
 true END Pre-uninstall script
 
@@ -131,6 +159,15 @@ true END Pre-uninstall script
 true BEG Post-uninstall script
 #Place temporary file cleaner here.
 #Place user deletion script here.
+if test "$1" = "0"; then # Uninstall
+	#Place your script post-uninstall script
+	echo "Post-uninstall script version:" %{version}>> /tmp/%{name}.log
+	:
+else # Uninstall by new version ($1 = "1")
+	#Place your script post-update script
+	echo "Post-update script of old version:" %{version}>> /tmp/%{name}.log
+	:
+fi
 
 true END Post-uninstall script
 
@@ -313,12 +350,12 @@ Sub Command:
     files <name>
         : Extract file list from skeleton directory
 
-	initspec <name>
-		: Make spec file template only.
+    initspec <name>
+        : Make spec file template only.
 
-	subst <file> <new file> <environment-var> [<environment-var>...]
-		: read <file> and convert all words like @environment-var@ patterns to the value of
-		  environment, and store the result to <new file>
+    subst <file> <new file> <environment-var> [<environment-var>...]
+        : read <file> and convert all words like @environment-var@ patterns to the value of
+          environment, and store the result to <new file>
 
     help
         : This help.
@@ -348,7 +385,7 @@ initspec)
 	;;
 build)
 	shift
-	if test $# -le 1; then
+	if test $# -lt 1; then
 		help
 		exit
 	fi
@@ -356,7 +393,7 @@ build)
 	;;
 files)
 	shift
-	if test $# -le 1; then
+	if test $# -lt 1; then
 		help
 		exit
 	fi
