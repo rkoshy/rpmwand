@@ -19,5 +19,6 @@
 
   Releases
   --------
+  v0.9.3: (2011-04-12) rpmbuild v4.8.1 applied to rpmwand
   v0.9.2: (2011-04-04) Pre/Post install/uninstall script help message added
   v0.9: (2010-04-19) Initial draft.

@@ -1,6 +1,6 @@
-VERSION=0.9.2
+VERSION=0.9.3
 RELEASE=1
-RPMFILE=RPMS/noarch/rpmwand-0.9.2-1.noarch.rpm
+RPMFILE=RPMS/noarch/rpmwand-$(VERSION)-1.noarch.rpm
 
 $(RPMFILE): rpmwand.spec.in rpmwand-files.txt
 	mkdir -p rpmwand-skel/usr/bin/ || exit 1
